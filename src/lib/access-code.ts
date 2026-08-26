@@ -7,7 +7,8 @@ export async function verifyAccessCode(code: string) {
   const stored = process.env.APP_ACCESS_CODE_HASH;
   if (!stored) return false;
 
-  const [algorithm, salt, expected] = stored.split("$");
+  const separator = stored.startsWith("scrypt:") ? ":" : "$";
+  const [algorithm, salt, expected] = stored.split(separator);
   if (algorithm !== "scrypt" || !salt || !expected) return false;
 
   const derived = (await scrypt(code, salt, 64)) as Buffer;
