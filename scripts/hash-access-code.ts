@@ -9,6 +9,10 @@ if (!code) {
   process.exit(1);
 }
 
-const salt = randomBytes(16).toString("base64url");
-const hash = (await scrypt(code, salt, 64)) as Buffer;
-console.log(`scrypt$${salt}$${hash.toString("base64url")}`);
+async function main() {
+  const salt = randomBytes(16).toString("base64url");
+  const hash = (await scrypt(code, salt, 64)) as Buffer;
+  console.log(`scrypt$${salt}$${hash.toString("base64url")}`);
+}
+
+void main();
