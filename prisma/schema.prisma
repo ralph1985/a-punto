@@ -40,6 +40,8 @@ model Vehicle {
   licensePlate    String?           @unique
   vin             String?           @unique
   notes           String?
+  purchasedAt     DateTime?
+  itvExpiresAt    DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   odometerReadings OdometerReading[]

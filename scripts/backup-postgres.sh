@@ -7,9 +7,7 @@ log_dir="$project_dir/var/log"
 timestamp="$(TZ=Europe/Madrid date +%Y%m%dT%H%M%S)"
 
 if [[ -f "$project_dir/.env.local" ]]; then
-  set -a
-  source "$project_dir/.env.local"
-  set +a
+  DATABASE_URL="${DATABASE_URL:-$(node -e 'require("dotenv").config({ path: process.argv[1], quiet: true }); process.stdout.write(process.env.DATABASE_URL || "")' "$project_dir/.env.local")}"
 fi
 
 if [[ -z "${DATABASE_URL:-}" ]]; then
