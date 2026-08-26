@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# A Punto
 
-## Getting Started
+Agenda privada de mantenimiento para vehículos. Prioriza lo que vence por fecha o kilómetros, permite registrar intervenciones y conserva el historial, costes y enlaces documentales.
 
-First, run the development server:
+## Arquitectura
+
+- Next.js, TypeScript y App Router.
+- Prisma 7 con PostgreSQL gestionado por Prisma Postgres en Vercel.
+- Acceso de una sola cuenta mediante código secreto hasheado y cookie de sesión firmada.
+- PWA instalable sin caché de datos privados ni modo offline.
+
+## Configuración local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env.local
+pnpm auth:hash -- "tu-codigo-secreto"
+pnpm db:migrate --name init
+pnpm import:legacy -- --write
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Configura el resultado de `auth:hash` como `APP_ACCESS_CODE_HASH` y crea un valor aleatorio largo para `SESSION_SECRET`. La integración de Vercel proporciona `DATABASE_URL` automáticamente al enlazar el proyecto.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Datos iniciales
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+La importación usa en modo lectura `/home/rafa/tailscale/dev-20260618-085601.db`. Puede validarse sin escribir:
 
-## Learn More
+```bash
+pnpm import:legacy
+```
 
-To learn more about Next.js, take a look at the following resources:
+Con `--write`, guarda vehículos, talleres, intervenciones, lecturas de odómetro, plan preventivo, seguro, compra y documentación. Las referencias de origen hacen que sea idempotente.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Copias
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm backup:db
+pnpm backup:db:cron:install
+```
 
-## Deploy on Vercel
+Las copias locales se guardan en `var/backups/postgres/`, ignoradas por Git, con archivos `600`, retención de 30 días y cron diario a las 01:00 Europe/Madrid. La exportación fuera del PC es una fase posterior.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Verificación
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```

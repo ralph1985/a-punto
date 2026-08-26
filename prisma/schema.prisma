@@ -1,0 +1,182 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MaintenanceCategory {
+  MAINTENANCE
+  TIRES
+  REPAIR
+  INSPECTION
+  INSURANCE
+  OTHER
+}
+
+enum DocumentKind {
+  INSURANCE
+  INSPECTION
+  REGISTRATION
+  TECHNICAL_SPECS
+  PURCHASE
+  INVOICE
+  OTHER
+}
+
+model Vehicle {
+  id              String            @id @default(cuid())
+  name            String
+  brand           String
+  model           String
+  year            Int?
+  licensePlate    String?           @unique
+  vin             String?           @unique
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  odometerReadings OdometerReading[]
+  maintenanceTasks MaintenanceTask[]
+  maintenanceEvents MaintenanceEvent[]
+  documents       DocumentLink[]
+  insurancePolicies InsurancePolicy[]
+  purchases       VehiclePurchase[]
+  importRecords   ImportRecord[]
+}
+
+model OdometerReading {
+  id        String   @id @default(cuid())
+  vehicleId String
+  valueKm   Int
+  recordedAt DateTime @default(now())
+  note      String?
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, recordedAt])
+}
+
+model ServiceProvider {
+  id          String             @id @default(cuid())
+  name        String
+  taxId       String?
+  phone       String?
+  email       String?
+  address     String?
+  notes       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  maintenanceEvents MaintenanceEvent[]
+}
+
+model MaintenanceTask {
+  id                 String              @id @default(cuid())
+  vehicleId          String
+  title              String
+  category           MaintenanceCategory @default(MAINTENANCE)
+  isActive           Boolean             @default(true)
+  intervalMonths     Int?
+  intervalKm         Int?
+  baselineDate       DateTime?
+  baselineOdometerKm Int?
+  fixedDueDate       DateTime?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  vehicle            Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  events             MaintenanceEvent[]
+
+  @@index([vehicleId, isActive])
+}
+
+model MaintenanceEvent {
+  id          String              @id @default(cuid())
+  vehicleId   String
+  taskId      String?
+  providerId  String?
+  title       String
+  category    MaintenanceCategory @default(OTHER)
+  serviceDate DateTime
+  odometerKm  Int?
+  cost        Decimal?            @db.Decimal(10, 2)
+  notes       String?
+  invoiceUrl  String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  vehicle     Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  task        MaintenanceTask?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  provider    ServiceProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+
+  @@index([vehicleId, serviceDate])
+  @@index([category, serviceDate])
+}
+
+model DocumentLink {
+  id          String       @id @default(cuid())
+  vehicleId   String
+  kind        DocumentKind
+  title       String
+  url         String?
+  issuedAt    DateTime?
+  effectiveAt DateTime?
+  expiresAt   DateTime?
+  details     Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, kind])
+  @@index([expiresAt])
+}
+
+model InsurancePolicy {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  insurer     String?
+  policyNumber String?
+  effectiveAt DateTime?
+  expiresAt   DateTime?
+  premium     Decimal? @db.Decimal(10, 2)
+  paymentFrequency String?
+  documentUrl String?
+  details     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, expiresAt])
+}
+
+model VehiclePurchase {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  dealerName  String?
+  offerDate   DateTime?
+  totalToPay  Decimal? @db.Decimal(12, 2)
+  documentUrl String?
+  details     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+}
+
+model ImportRecord {
+  id          String   @id @default(cuid())
+  vehicleId   String?
+  sourceTable String
+  sourceId    String
+  payload     Json
+  importedAt  DateTime @default(now())
+  vehicle     Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceTable, sourceId])
+  @@index([vehicleId])
+}
