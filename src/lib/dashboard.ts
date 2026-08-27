@@ -9,7 +9,8 @@ export async function getDashboard() {
   });
   return vehicles.map((vehicle) => {
     const odometer = vehicle.odometerReadings[0]?.valueKm ?? null;
-    const tasks = vehicle.maintenanceTasks.map((task) => ({ ...task, evaluation: evaluateTask(task, odometer) })).sort((a, b) => a.evaluation.status.localeCompare(b.evaluation.status));
+    const scheduledTasks = vehicle.itvExpiresAt ? [...vehicle.maintenanceTasks, { id: `itv-${vehicle.id}`, title: "ITV", category: "INSPECTION" as const, isActive: true, intervalMonths: null, intervalKm: null, baselineDate: null, baselineOdometerKm: null, fixedDueDate: vehicle.itvExpiresAt, notes: null, createdAt: vehicle.createdAt, updatedAt: vehicle.updatedAt, vehicleId: vehicle.id }] : vehicle.maintenanceTasks;
+    const tasks = scheduledTasks.map((task) => ({ ...task, evaluation: evaluateTask(task, odometer) })).sort((a, b) => a.evaluation.status.localeCompare(b.evaluation.status));
     return { ...vehicle, slug: getVehicleSlug(vehicle), odometer, tasks };
   });
 }
