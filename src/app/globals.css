@@ -21,7 +21,7 @@ h2 { font-size: clamp(1.25rem, 3vw, 1.65rem); letter-spacing: -.035em; line-heig
 .login-form button, .primary-action { align-items: center; background: var(--lime); border: 0; border-radius: 10px; color: var(--lime-ink); cursor: pointer; display: inline-flex; font-weight: 800; gap: 9px; justify-content: center; min-height: 48px; padding: 0 16px; transition: transform .2s ease, background .2s ease; }
 .login-form button:active, .primary-action:active { transform: translateY(1px); }
 .login-form button:disabled, .primary-action:disabled { cursor: not-allowed; opacity: .5; }
-.form-error { color: var(--danger); font-size: .9rem; margin: 0; }
+.form-error, .form-success { font-size: .9rem; margin: 0; }.form-error { color: var(--danger); }.form-success { color: var(--lime); }
 .feedback-page { align-items: center; display: grid; min-height: 100dvh; padding: 24px; }.feedback-page section { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; margin: auto; max-width: 480px; padding: 30px; }.feedback-page .eyebrow { margin: 0 0 8px; }.feedback-page h1 { font-size: 2.2rem; }.feedback-page p:not(.eyebrow) { color: var(--muted); line-height: 1.55; }.feedback-page button, .feedback-page a { background: var(--lime); border: 0; border-radius: 9px; color: var(--lime-ink); cursor: pointer; display: inline-block; font-weight: 800; margin-top: 12px; padding: 12px 14px; text-decoration: none; }
 .app-shell { min-height: 100dvh; padding-bottom: 84px; }
 .app-navigation { align-items: center; background: rgba(18, 23, 20, .96); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; min-height: 68px; padding: 0 20px; position: sticky; top: 0; z-index: 10; }
