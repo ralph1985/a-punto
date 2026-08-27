@@ -1,10 +1,11 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { verifyAccessCode } from "@/lib/access-code";
 import { createSession, SESSION_COOKIE } from "@/lib/auth";
+import { clearLoginAttempts, getLoginClientIp, isLoginBlocked, recordFailedLogin } from "@/lib/login-rate-limit";
 
 export type LoginState = { error?: string };
 
@@ -16,8 +17,17 @@ export async function login(_: LoginState, formData: FormData): Promise<LoginSta
   const parsed = loginSchema.safeParse({ code: formData.get("code") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const requestHeaders = await headers();
+  const clientIp = getLoginClientIp(requestHeaders);
+  if (await isLoginBlocked(clientIp)) return { error: "Demasiados intentos. Espera unos minutos." };
+
   const valid = await verifyAccessCode(parsed.data.code);
-  if (!valid) return { error: "El código no es válido." };
+  if (!valid) {
+    const blocked = await recordFailedLogin(clientIp);
+    return { error: blocked ? "Demasiados intentos. Espera unos minutos." : "El código no es válido." };
+  }
+
+  await clearLoginAttempts(clientIp);
 
   const session = createSession();
   const cookieStore = await cookies();
