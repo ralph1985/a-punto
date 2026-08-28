@@ -31,11 +31,18 @@ enum DocumentKind {
   OTHER
 }
 
+enum VehicleMenuIcon {
+  CAR
+  VAN
+}
+
 model Vehicle {
   id              String            @id @default(cuid())
   name            String
   brand           String
   model           String
+  slug            String            @unique
+  menuIcon        VehicleMenuIcon   @default(CAR)
   year            Int?
   licensePlate    String?           @unique
   vin             String?           @unique

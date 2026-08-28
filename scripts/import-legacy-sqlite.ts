@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { existsSync } from "node:fs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { PrismaClient, MaintenanceCategory, DocumentKind } from "../src/generated/prisma/client";
+import { PrismaClient, MaintenanceCategory, DocumentKind, VehicleMenuIcon } from "../src/generated/prisma/client";
 
 type Row = Record<string, unknown>;
 type SQLiteDatabase = { prepare(sql: string): { all(): Row[] }; close(): void };
@@ -27,6 +27,18 @@ function category(title: string): MaintenanceCategory {
   if (normalized.includes("revisi") || normalized.includes("aceite") || normalized.includes("filtro") || normalized.includes("buj")) return MaintenanceCategory.MAINTENANCE;
   if (normalized.includes("seguro")) return MaintenanceCategory.INSURANCE;
   return MaintenanceCategory.REPAIR;
+}
+
+function vehicleSlug(row: Row) {
+  const identity = `${row.name ?? ""} ${row.model ?? ""}`.toLocaleLowerCase("es-ES");
+  if (identity.includes("punto")) return "punto";
+  if (identity.includes("rifter")) return "rifter";
+  const fallback = String(row.name ?? `vehicle-${row.id}`).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("en-US").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return fallback || `vehicle-${row.id}`;
+}
+
+function vehicleMenuIcon(row: Row): VehicleMenuIcon {
+  return `${row.name ?? ""} ${row.model ?? ""}`.toLocaleLowerCase("es-ES").includes("rifter") ? VehicleMenuIcon.VAN : VehicleMenuIcon.CAR;
 }
 
 const sqlite = new DatabaseSync(source, { readOnly: true });
@@ -61,7 +73,7 @@ async function main() {
   for (const row of sourceData.vehicles) {
     const existing = await imported("Vehicle", row.id);
     if (existing?.vehicleId) { vehicles.set(Number(row.id), existing.vehicleId); continue; }
-    const vehicle = await db.vehicle.create({ data: { name: String(row.name ?? `${row.brand} ${row.model}`), brand: String(row.brand), model: String(row.model), year: row.year ? Number(row.year) : null, licensePlate: row.licensePlate ? String(row.licensePlate) : null, vin: row.vin ? String(row.vin) : null, notes: row.notes ? String(row.notes) : null } });
+    const vehicle = await db.vehicle.create({ data: { name: String(row.name ?? `${row.brand} ${row.model}`), brand: String(row.brand), model: String(row.model), slug: vehicleSlug(row), menuIcon: vehicleMenuIcon(row), year: row.year ? Number(row.year) : null, licensePlate: row.licensePlate ? String(row.licensePlate) : null, vin: row.vin ? String(row.vin) : null, notes: row.notes ? String(row.notes) : null } });
     await mark("Vehicle", row.id, row, vehicle.id);
     vehicles.set(Number(row.id), vehicle.id);
   }

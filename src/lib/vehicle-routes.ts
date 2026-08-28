@@ -1,20 +1,10 @@
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 
-export const vehicleRoutes = {
-  punto: "Punto",
-  rifter: "Rifter",
-} as const;
+export type VehicleRouteSlug = string;
 
-export type VehicleRouteSlug = keyof typeof vehicleRoutes;
-
-export function isVehicleRouteSlug(value: string): value is VehicleRouteSlug {
-  return value in vehicleRoutes;
-}
-
-export function getVehicleSlug(vehicle: { name: string; model: string }): VehicleRouteSlug | null {
-  const identity = `${vehicle.name} ${vehicle.model}`.toLocaleLowerCase("es-ES");
-  return (Object.keys(vehicleRoutes) as VehicleRouteSlug[]).find((slug) => identity.includes(slug)) ?? null;
+export function getVehicleSlug(vehicle: { slug: string }): VehicleRouteSlug {
+  return vehicle.slug;
 }
 
 export const vehicleDetailInclude = {
@@ -26,11 +16,17 @@ export const vehicleDetailInclude = {
 
 export type VehicleDetail = Prisma.VehicleGetPayload<{ include: typeof vehicleDetailInclude }>;
 
+export async function getVehiclesForNavigation() {
+  return db.vehicle.findMany({
+    select: { slug: true, name: true, menuIcon: true },
+    orderBy: [{ year: "asc" }, { brand: "asc" }, { name: "asc" }],
+  });
+}
+
 export async function getVehicleBySlug(slug: VehicleRouteSlug) {
-  const vehicles = await db.vehicle.findMany({ include: vehicleDetailInclude });
-  return vehicles.find((vehicle) => getVehicleSlug(vehicle) === slug) ?? null;
+  return db.vehicle.findUnique({ where: { slug }, include: vehicleDetailInclude });
 }
 
 export async function getVehicleById(id: string) {
-  return db.vehicle.findUnique({ where: { id }, select: { name: true, model: true } });
+  return db.vehicle.findUnique({ where: { id }, select: { slug: true } });
 }
