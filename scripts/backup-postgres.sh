@@ -10,6 +10,8 @@ if [[ -f "$project_dir/.env.local" ]]; then
   DATABASE_URL="${DATABASE_URL:-$(node -e 'require("dotenv").config({ path: process.argv[1], quiet: true }); process.stdout.write(process.env.DATABASE_URL || "")' "$project_dir/.env.local")}"
 fi
 
+DATABASE_URL="$(DATABASE_URL="$DATABASE_URL" node -e 'const value = process.env.DATABASE_URL; if (!value) process.exit(1); const url = new URL(value); const mode = url.searchParams.get("sslmode"); if (!mode || ["prefer", "require", "verify-ca"].includes(mode)) url.searchParams.set("sslmode", "verify-full"); process.stdout.write(url.toString())')"
+
 if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "Falta DATABASE_URL" >&2
   exit 1

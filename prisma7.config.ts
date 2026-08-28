@@ -2,6 +2,7 @@
 // npm install --save-dev prisma dotenv
 import dotenv from "dotenv";
 import { defineConfig } from "prisma/config";
+import { normalizePostgresConnectionString } from "./src/lib/db-connection";
 
 dotenv.config({ path: ".env.local" });
 dotenv.config();
@@ -12,6 +13,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: normalizePostgresConnectionString(process.env["DATABASE_URL"]),
   },
 });

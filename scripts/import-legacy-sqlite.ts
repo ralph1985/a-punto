@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient, MaintenanceCategory, DocumentKind, VehicleMenuIcon } from "../src/generated/prisma/client";
+import { normalizePostgresConnectionString } from "../src/lib/db-connection";
 
 type Row = Record<string, unknown>;
 type SQLiteDatabase = { prepare(sql: string): { all(): Row[] }; close(): void };
@@ -53,8 +54,9 @@ sqlite.close();
 console.log(JSON.stringify({ source, mode: write ? "write" : "dry-run", counts: Object.fromEntries(Object.entries(sourceData).map(([key, rows]) => [key, rows.length])) }, null, 2));
 if (!write) process.exit(0);
 
-if (!process.env.DATABASE_URL) throw new Error("Falta DATABASE_URL para escribir la importación.");
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error("Falta DATABASE_URL para escribir la importación.");
+const pool = new Pool({ connectionString: normalizePostgresConnectionString(databaseUrl) });
 const db = new PrismaClient({ adapter: new PrismaPg(pool) });
 
 async function imported(sourceTable: string, sourceId: unknown) {
