@@ -36,9 +36,8 @@ h2 { font-size: clamp(1.25rem, 3vw, 1.65rem); letter-spacing: -.035em; line-heig
 .navigation-item.active:has(.navigation-link-spinner.is-pending) { background: var(--lime); color: var(--lime-ink); }
 .navigation-link-spinner { border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; height: 11px; opacity: 0; position: absolute; right: 7px; top: 7px; width: 11px; }
 .navigation-link-spinner.is-pending { animation: navigation-spin .8s linear infinite; opacity: 1; }
-.navigation-loading-bar, .route-loading-bar { background: var(--lime); height: 3px; left: 0; opacity: 0; pointer-events: none; position: fixed; top: 0; transform: scaleX(0); transform-origin: left; width: 100%; z-index: 100; }
-.navigation-loading-bar.is-pending, .route-loading-bar { animation: navigation-progress 1.2s ease-in-out infinite; opacity: 1; }
-.route-loading { min-height: 100dvh; }
+.navigation-loading-bar { background: var(--lime); height: 3px; left: 0; opacity: 0; pointer-events: none; position: fixed; top: 0; transform: scaleX(0); transform-origin: left; width: 100%; z-index: 100; }
+.navigation-loading-bar.is-pending { animation: navigation-progress 1.2s ease-in-out infinite; opacity: 1; }
 .sr-only { border: 0; clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
 .app-main { margin: 0 auto; max-width: 1180px; padding: 38px 20px; }
 .page-header { align-items: flex-end; display: flex; gap: 24px; justify-content: space-between; margin-bottom: 32px; }
