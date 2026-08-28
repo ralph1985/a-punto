@@ -29,9 +29,17 @@ h2 { font-size: clamp(1.25rem, 3vw, 1.65rem); letter-spacing: -.035em; line-heig
 .wordmark-icon { border-radius: 8px; height: 32px; width: 32px; }
 .navigation-items { background: #202922; border: 1px solid var(--line); border-radius: 12px; bottom: 14px; display: flex; left: 14px; overflow-x: auto; padding: 4px; position: fixed; right: 14px; scrollbar-width: none; z-index: 10; }
 .navigation-items::-webkit-scrollbar { display: none; }
-.navigation-item { align-items: center; border-radius: 8px; color: var(--muted); display: flex; flex: 1 1 0; flex-direction: column; font-size: .72rem; gap: 3px; justify-content: center; min-height: 54px; min-width: 0; text-align: center; text-decoration: none; }
-.navigation-item span { text-align: center; width: 100%; }
+.navigation-item { align-items: center; border-radius: 8px; color: var(--muted); display: flex; flex: 1 1 0; flex-direction: column; font-size: .72rem; gap: 3px; justify-content: center; min-height: 54px; min-width: 0; position: relative; text-align: center; text-decoration: none; }
+.navigation-item .navigation-label { text-align: center; width: 100%; }
 .navigation-item.active { background: var(--lime); color: var(--lime-ink); font-weight: 800; }
+.navigation-item:has(.navigation-link-spinner.is-pending) { background: var(--surface-2); color: var(--ink); }
+.navigation-item.active:has(.navigation-link-spinner.is-pending) { background: var(--lime); color: var(--lime-ink); }
+.navigation-link-spinner { border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; height: 11px; opacity: 0; position: absolute; right: 7px; top: 7px; width: 11px; }
+.navigation-link-spinner.is-pending { animation: navigation-spin .8s linear infinite; opacity: 1; }
+.navigation-loading-bar, .route-loading-bar { background: var(--lime); height: 3px; left: 0; opacity: 0; pointer-events: none; position: fixed; top: 0; transform: scaleX(0); transform-origin: left; width: 100%; z-index: 100; }
+.navigation-loading-bar.is-pending, .route-loading-bar { animation: navigation-progress 1.2s ease-in-out infinite; opacity: 1; }
+.route-loading { min-height: 100dvh; }
+.sr-only { border: 0; clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
 .app-main { margin: 0 auto; max-width: 1180px; padding: 38px 20px; }
 .page-header { align-items: flex-end; display: flex; gap: 24px; justify-content: space-between; margin-bottom: 32px; }
 .page-header .eyebrow { margin: 0 0 8px; }
@@ -72,3 +80,5 @@ h2 { font-size: clamp(1.25rem, 3vw, 1.65rem); letter-spacing: -.035em; line-heig
 @media (min-width: 768px) { .app-shell { padding-bottom: 0; } .app-navigation { padding: 0 max(32px, calc((100vw - 1180px) / 2)); } .navigation-items { background: transparent; border: 0; bottom: auto; left: auto; overflow: visible; padding: 0; position: static; right: auto; } .navigation-item { flex: 1 1 0; flex-direction: row; font-size: .9rem; gap: 7px; min-height: 38px; min-width: 90px; padding: 0 12px; } }
 @media (max-width: 700px) { .page-header { align-items: stretch; flex-direction: column; } .primary-action { width: 100%; } .overview-grid, .vehicles-grid, .cost-summary, .detail-grid, .forms-grid, .vehicle-data-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0ms !important; } }
+@keyframes navigation-spin { to { transform: rotate(360deg); } }
+@keyframes navigation-progress { 0% { transform: scaleX(.08); } 50% { transform: scaleX(.68); } 100% { transform: scaleX(.94); } }
