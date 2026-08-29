@@ -1,27 +1,21 @@
-import { CalendarCheck, CurrencyEur, FileText, WarningCircle, Wrench } from "@phosphor-icons/react/dist/ssr";
-import { DocumentKind, MaintenanceCategory } from "@/generated/prisma/client";
-import { createDocumentLink, createMaintenanceEvent, createMaintenanceTask } from "@/app/actions";
-import { EntryForm } from "@/components/entry-form";
+import Link from "next/link";
+import { CalendarCheck, CurrencyEur, FileText, PencilSimple, Plus, WarningCircle, Wrench } from "@phosphor-icons/react/dist/ssr";
+import { TaskDeactivateForm } from "@/components/task-deactivate-form";
 import type { VehicleDetail } from "@/lib/vehicle-routes";
 
-const categoryLabels: Record<MaintenanceCategory, string> = {
+const categoryLabels = {
   MAINTENANCE: "Mantenimiento",
   REPAIR: "Reparación",
   INSPECTION: "Inspección",
   TIRES: "Neumáticos",
   INSURANCE: "Seguro",
   OTHER: "Otro",
-};
+} as const;
 
-const documentKindLabels: Record<DocumentKind, string> = {
-  INSURANCE: "Seguro",
-  INSPECTION: "Inspección",
-  REGISTRATION: "Permiso de circulación",
-  TECHNICAL_SPECS: "Ficha técnica",
-  PURCHASE: "Compra",
-  INVOICE: "Factura",
-  OTHER: "Otro",
-};
+function taskSchedule(task: VehicleDetail["maintenanceTasks"][number]) {
+  const schedule = [task.intervalMonths ? `Cada ${task.intervalMonths} meses` : null, task.intervalKm ? `Cada ${task.intervalKm.toLocaleString("es-ES")} km` : null].filter(Boolean);
+  return schedule.length > 0 ? schedule.join(" o ") : "Sin plazo configurado";
+}
 
 export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
   const costedEvents = vehicle.maintenanceEvents.filter((event) => event.cost !== null);
@@ -72,34 +66,40 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
 
       <section className="detail-grid">
         <article className="detail-panel">
-          <div className="panel-heading">
-            <Wrench size={22} aria-hidden="true" />
-            <h2>Historial</h2>
+          <div className="panel-heading panel-heading-with-action">
+            <div className="panel-heading-title"><Wrench size={22} aria-hidden="true" /><h2>Historial</h2></div>
+            <Link className="panel-action" href={`/${vehicle.slug}/intervenciones/nueva`}><Plus size={17} aria-hidden="true" /> Registrar</Link>
           </div>
-          {vehicle.maintenanceEvents.map((event) => (
+          {vehicle.maintenanceEvents.length > 0 ? vehicle.maintenanceEvents.map((event) => (
             <div className="history-row" key={event.id}>
-              <div>
+              <div className="history-row-content">
                 <strong>{event.title}</strong>
                 <span>{event.serviceDate.toLocaleDateString("es-ES")}{event.odometerKm ? ` · ${event.odometerKm.toLocaleString("es-ES")} km` : ""}</span>
                 <small>{event.provider?.name ?? "Taller no registrado"}</small>
               </div>
-              <b>{event.cost ? Number(event.cost).toLocaleString("es-ES", { style: "currency", currency: "EUR" }) : ""}</b>
+              <div className="row-actions">
+                <b>{event.cost ? Number(event.cost).toLocaleString("es-ES", { style: "currency", currency: "EUR" }) : ""}</b>
+                <Link className="row-edit" href={`/${vehicle.slug}/intervenciones/${event.id}/editar`} aria-label={`Editar ${event.title}`}><PencilSimple size={17} aria-hidden="true" /> <span>Editar</span></Link>
+              </div>
             </div>
-          ))}
+          )) : <p className="empty-state">Todavía no hay intervenciones registradas.</p>}
         </article>
 
         <aside className="detail-panel">
-          <div className="panel-heading">
-            <FileText size={22} aria-hidden="true" />
-            <h2>Documentos</h2>
+          <div className="panel-heading panel-heading-with-action">
+            <div className="panel-heading-title"><FileText size={22} aria-hidden="true" /><h2>Documentos</h2></div>
+            <Link className="panel-action" href={`/${vehicle.slug}/documentos/nuevo`}><Plus size={17} aria-hidden="true" /> Añadir</Link>
           </div>
-          {vehicle.documents.map((document) => (
+          {vehicle.documents.length > 0 ? vehicle.documents.map((document) => (
             <div className="document-row" key={document.id}>
-              <strong>{document.title}</strong>
-              {document.expiresAt ? <span>Vence el {document.expiresAt.toLocaleDateString("es-ES")}</span> : null}
-              {document.url ? <a href={document.url} target="_blank" rel="noreferrer">Abrir enlace</a> : <small>Sin enlace disponible</small>}
+              <div>
+                <strong>{document.title}</strong>
+                {document.expiresAt ? <span>Vence el {document.expiresAt.toLocaleDateString("es-ES")}</span> : null}
+                {document.url ? <a href={document.url} target="_blank" rel="noreferrer">Abrir enlace</a> : <small>Sin enlace disponible</small>}
+              </div>
+              <Link className="row-edit" href={`/${vehicle.slug}/documentos/${document.id}/editar`} aria-label={`Editar ${document.title}`}><PencilSimple size={17} aria-hidden="true" /> <span>Editar</span></Link>
             </div>
-          ))}
+          )) : <p className="empty-state">Todavía no hay enlaces documentales.</p>}
           {vehicle.insurancePolicies.map((policy) => (
             <div className="document-row" key={policy.id}>
               <strong>Seguro {policy.insurer ?? ""}</strong>
@@ -110,32 +110,24 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
         </aside>
       </section>
 
-      <section className="forms-grid">
-        <EntryForm action={createMaintenanceEvent} vehicleId={vehicle.id} title="Registrar trabajo" submitLabel="Guardar intervención">
-          <label>Título<input name="title" required /></label>
-          <label>Categoría<select name="category" defaultValue={MaintenanceCategory.MAINTENANCE}>{Object.values(MaintenanceCategory).map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></label>
-          <label>Fecha<input name="serviceDate" type="date" required /></label>
-          <label>Kilómetros<input name="odometerKm" type="number" min="0" /></label>
-          <label>Coste<input name="cost" type="number" step="0.01" min="0" /></label>
-          <label>Taller<input name="providerName" /></label>
-          <label>Notas<textarea name="notes" rows={3} /></label>
-          <label>Enlace factura<input name="invoiceUrl" type="url" /></label>
-        </EntryForm>
-
-        <EntryForm action={createMaintenanceTask} vehicleId={vehicle.id} title="Añadir mantenimiento" submitLabel="Guardar regla">
-          <label>Tarea<input name="title" required /></label>
-          <label>Categoría<select name="category" defaultValue={MaintenanceCategory.MAINTENANCE}>{Object.values(MaintenanceCategory).map((value) => <option key={value} value={value}>{categoryLabels[value]}</option>)}</select></label>
-          <label>Cada meses<input name="intervalMonths" type="number" min="1" /></label>
-          <label>Cada kilómetros<input name="intervalKm" type="number" min="1" /></label>
-          <label>Notas<textarea name="notes" rows={3} /></label>
-        </EntryForm>
-
-        <EntryForm action={createDocumentLink} vehicleId={vehicle.id} title="Añadir enlace" submitLabel="Guardar enlace">
-          <label>Título<input name="title" required /></label>
-          <label>Tipo<select name="kind" defaultValue={DocumentKind.OTHER}>{Object.values(DocumentKind).map((value) => <option key={value} value={value}>{documentKindLabels[value]}</option>)}</select></label>
-          <label>URL<input name="url" type="url" /></label>
-          <label>Caducidad<input name="expiresAt" type="date" /></label>
-        </EntryForm>
+      <section className="detail-panel maintenance-rules-panel">
+        <div className="panel-heading panel-heading-with-action">
+          <div className="panel-heading-title"><WarningCircle size={22} aria-hidden="true" /><h2>Mantenimiento programado</h2></div>
+          <Link className="panel-action" href={`/${vehicle.slug}/mantenimiento/nueva`}><Plus size={17} aria-hidden="true" /> Añadir</Link>
+        </div>
+        {vehicle.maintenanceTasks.length > 0 ? <div className="maintenance-rules-list">{vehicle.maintenanceTasks.map((task) => (
+          <div className="maintenance-rule-row" key={task.id}>
+            <div>
+              <strong>{task.title}</strong>
+              <span>{categoryLabels[task.category]} · {taskSchedule(task)}</span>
+              {task.notes ? <small>{task.notes}</small> : null}
+            </div>
+            <div className="row-actions">
+              <Link className="row-edit" href={`/${vehicle.slug}/mantenimiento/${task.id}/editar`} aria-label={`Editar ${task.title}`}><PencilSimple size={17} aria-hidden="true" /> <span>Editar</span></Link>
+              <TaskDeactivateForm vehicleId={vehicle.id} taskId={task.id} />
+            </div>
+          </div>
+        ))}</div> : <p className="empty-state">No hay reglas activas. Añade una para recibir avisos.</p>}
       </section>
     </main>
   );
