@@ -4,7 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { verifyAccessCode } from "@/lib/access-code";
-import { createSession, SESSION_COOKIE } from "@/lib/auth";
+import { createSession, revokeAllSessions, SESSION_COOKIE } from "@/lib/auth";
 import { clearLoginAttempts, getLoginClientIp, isLoginBlocked, recordFailedLogin } from "@/lib/login-rate-limit";
 
 export type LoginState = { error?: string };
@@ -29,6 +29,7 @@ export async function login(_: LoginState, formData: FormData): Promise<LoginSta
 
   await clearLoginAttempts(clientIp);
 
+  await revokeAllSessions();
   const session = createSession();
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, session.value, {
@@ -36,7 +37,7 @@ export async function login(_: LoginState, formData: FormData): Promise<LoginSta
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: session.expiresAt - Math.floor(Date.now() / 1000),
+    maxAge: Math.ceil((session.expiresAt - Date.now()) / 1000),
   });
 
   redirect("/");
@@ -44,6 +45,7 @@ export async function login(_: LoginState, formData: FormData): Promise<LoginSta
 
 export async function logout() {
   const cookieStore = await cookies();
+  if (cookieStore.get(SESSION_COOKIE)?.value) await revokeAllSessions();
   cookieStore.delete(SESSION_COOKIE);
   redirect("/login");
 }

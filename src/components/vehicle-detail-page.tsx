@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarCheck, CurrencyEur, FileText, PencilSimple, Plus, WarningCircle, Wrench } from "@phosphor-icons/react/dist/ssr";
 import { TaskDeactivateForm } from "@/components/task-deactivate-form";
+import { isSafeHttpUrl } from "@/lib/safe-url";
 import type { VehicleDetail } from "@/lib/vehicle-routes";
 
 const categoryLabels = {
@@ -95,7 +96,7 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
               <div>
                 <strong>{document.title}</strong>
                 {document.expiresAt ? <span>Vence el {document.expiresAt.toLocaleDateString("es-ES")}</span> : null}
-                {document.url ? <a href={document.url} target="_blank" rel="noreferrer">Abrir enlace</a> : <small>Sin enlace disponible</small>}
+                {document.url && isSafeHttpUrl(document.url) ? <a href={document.url} target="_blank" rel="noreferrer">Abrir enlace</a> : <small>Sin enlace disponible</small>}
               </div>
               <Link className="row-edit" href={`/${vehicle.slug}/documentos/${document.id}/editar`} aria-label={`Editar ${document.title}`}><PencilSimple size={17} aria-hidden="true" /> <span>Editar</span></Link>
             </div>
@@ -104,7 +105,7 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
             <div className="document-row" key={policy.id}>
               <strong>Seguro {policy.insurer ?? ""}</strong>
               {policy.expiresAt ? <span>Vence el {policy.expiresAt.toLocaleDateString("es-ES")}</span> : null}
-              {policy.documentUrl ? <a href={policy.documentUrl} target="_blank" rel="noreferrer">Abrir póliza</a> : null}
+              {policy.documentUrl && isSafeHttpUrl(policy.documentUrl) ? <a href={policy.documentUrl} target="_blank" rel="noreferrer">Abrir póliza</a> : null}
             </div>
           ))}
         </aside>

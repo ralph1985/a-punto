@@ -29,8 +29,23 @@ chmod 700 "$backup_dir" "$log_dir"
 umask 077
 backup_file="$backup_dir/a-punto-$timestamp.dump"
 temporary_file="$backup_file.tmp.$$"
-trap 'rm -f "$temporary_file"' EXIT
-pg_dump --format=custom --file "$temporary_file" "$DATABASE_URL"
+pgpass_file="$backup_dir/.pgpass.$$"
+trap 'rm -f "$temporary_file" "$pgpass_file"' EXIT
+
+# Keep the password out of pg_dump's argv. The short-lived pgpass file is
+# private and removed by the EXIT trap, including on failed backups.
+DATABASE_URL="$DATABASE_URL" PGPASSFILE="$pgpass_file" "$node_bin" -e '
+  const fs = require("node:fs");
+  const url = new URL(process.env.DATABASE_URL);
+  const escape = (value) => value.replaceAll("\\", "\\\\").replaceAll(":", "\\:");
+  const database = decodeURIComponent(url.pathname.slice(1));
+  const username = decodeURIComponent(url.username);
+  const password = decodeURIComponent(url.password);
+  fs.writeFileSync(process.env.PGPASSFILE, "*:*:" + escape(database) + ":" + escape(username) + ":" + escape(password) + "\\n", { mode: 0o600 });
+'
+chmod 600 "$pgpass_file"
+safe_database_url="$(DATABASE_URL="$DATABASE_URL" "$node_bin" -e 'const url = new URL(process.env.DATABASE_URL); url.password = ""; process.stdout.write(url.toString())')"
+PGPASSFILE="$pgpass_file" pg_dump --no-password --format=custom --file "$temporary_file" --dbname="$safe_database_url"
 mv "$temporary_file" "$backup_file"
 trap - EXIT
 find "$backup_dir" -type f -name 'a-punto-*.dump' -mtime +30 -delete

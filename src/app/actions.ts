@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
+import { safeHttpUrlSchema } from "@/lib/safe-url";
 import { DocumentKind, MaintenanceCategory } from "@/generated/prisma/client";
 
 export type FormState = { error?: string; success?: string };
@@ -39,9 +40,10 @@ export async function updateOdometer(_previousState: FormState, formData: FormDa
 
 const optionalInteger = z.preprocess((value) => value === "" || value === null ? null : Number(value), z.number().int().positive().nullable());
 const optionalAmount = z.preprocess((value) => value === "" || value === null ? null : Number(value), z.number().nonnegative().nullable());
-const maintenanceSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), serviceDate: z.coerce.date(), odometerKm: optionalInteger, cost: optionalAmount, providerName: z.string().trim().max(120), notes: z.string().trim().max(500), invoiceUrl: z.union([z.string().url(), z.literal("")]) });
+const optionalHttpUrl = z.union([safeHttpUrlSchema, z.literal("")]);
+const maintenanceSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), serviceDate: z.coerce.date(), odometerKm: optionalInteger, cost: optionalAmount, providerName: z.string().trim().max(120), notes: z.string().trim().max(500), invoiceUrl: optionalHttpUrl });
 const taskSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), intervalMonths: optionalInteger, intervalKm: optionalInteger, notes: z.string().trim().max(500) }).refine((data) => data.intervalMonths || data.intervalKm, "Indica un plazo en meses o kilómetros.");
-const documentSchema = z.object({ vehicleId: z.string().min(1), kind: z.nativeEnum(DocumentKind), title: z.string().trim().min(2), url: z.union([z.string().url(), z.literal("")]), expiresAt: z.union([z.coerce.date(), z.literal("")]) });
+const documentSchema = z.object({ vehicleId: z.string().min(1), kind: z.nativeEnum(DocumentKind), title: z.string().trim().min(2), url: optionalHttpUrl, expiresAt: z.union([z.coerce.date(), z.literal("")]) });
 
 function refresh(vehicleSlug: string) { revalidatePath("/"); revalidatePath(`/${vehicleSlug}`); }
 

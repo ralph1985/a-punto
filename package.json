@@ -18,29 +18,36 @@
     "backup:db:cron:install": "scripts/install-backup-cron.sh"
   },
   "dependencies": {
-    "@phosphor-icons/react": "^2.1.10",
-    "@prisma/adapter-pg": "^7.10.0",
-    "@prisma/client": "^7.10.0",
-    "dotenv": "^17.4.2",
+    "@phosphor-icons/react": "2.1.10",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "17.4.2",
     "next": "16.3.3",
-    "pg": "^8.23.0",
+    "pg": "8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "zod": "^4.4.3"
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/pg": "^8.23.1",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "20.19.43",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "eslint": "9.39.5",
     "eslint-config-next": "16.3.3",
     "prisma": "7.10.0",
-    "tailwindcss": "^4",
-    "tsx": "^4.23.12",
-    "typescript": "^5",
-    "vitest": "^4.1.11"
+    "tailwindcss": "4.3.3",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
   },
-  "packageManager": "pnpm@10.25.0"
+  "packageManager": "pnpm@10.25.0",
+  "pnpm": {
+    "overrides": {
+      "deepmerge-ts": "8.0.2",
+      "lodash": "4.18.1",
+      "mysql2": "3.24.3"
+    }
+  }
 }

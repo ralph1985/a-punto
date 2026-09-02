@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isValidSession, SESSION_COOKIE } from "./auth";
+import { isSessionRevoked, isValidSession, SESSION_COOKIE } from "./auth";
 
 export async function requireSession() {
   const cookieStore = await cookies();
-  if (!isValidSession(cookieStore.get(SESSION_COOKIE)?.value)) redirect("/login");
+  const value = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!value || !isValidSession(value) || await isSessionRevoked(value)) redirect("/login");
 }

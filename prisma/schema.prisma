@@ -200,3 +200,9 @@ model LoginRateLimit {
 
   @@index([blockedUntil])
 }
+
+model SessionControl {
+  id            Int       @id @default(1)
+  revokedBefore DateTime?
+  updatedAt     DateTime  @updatedAt
+}

@@ -9,8 +9,9 @@ function rateLimitSecret() {
 }
 
 export function getLoginClientIp(headers: Headers) {
-  const forwarded = headers.get("x-vercel-forwarded-for") ?? headers.get("x-forwarded-for");
-  const value = forwarded?.split(",")[0]?.trim() || headers.get("x-real-ip")?.trim() || "unknown";
+  // x-forwarded-for is client-spoofable unless a trusted proxy strips it first.
+  // Prefer Vercel's platform-provided header and otherwise use one stable bucket.
+  const value = headers.get("x-vercel-forwarded-for")?.trim() || "unknown";
   return value.slice(0, 128) || "unknown";
 }
 
