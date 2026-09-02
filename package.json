@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "ci:check": "pnpm install --frozen-lockfile && pnpm audit --prod && pnpm lint && pnpm typecheck && pnpm test",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "auth:hash": "tsx scripts/hash-access-code.ts",
