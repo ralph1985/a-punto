@@ -41,12 +41,13 @@ DATABASE_URL="$DATABASE_URL" PGPASSFILE="$pgpass_file" "$node_bin" -e '
   const database = decodeURIComponent(url.pathname.slice(1));
   const username = decodeURIComponent(url.username);
   const password = decodeURIComponent(url.password);
-  fs.writeFileSync(process.env.PGPASSFILE, "*:*:" + escape(database) + ":" + escape(username) + ":" + escape(password) + "\\n", { mode: 0o600 });
+  fs.writeFileSync(process.env.PGPASSFILE, "*:*:" + escape(database) + ":" + escape(username) + ":" + escape(password) + "\n", { mode: 0o600 });
 '
 chmod 600 "$pgpass_file"
 safe_database_url="$(DATABASE_URL="$DATABASE_URL" "$node_bin" -e 'const url = new URL(process.env.DATABASE_URL); url.password = ""; process.stdout.write(url.toString())')"
 PGPASSFILE="$pgpass_file" pg_dump --no-password --format=custom --file "$temporary_file" --dbname="$safe_database_url"
 mv "$temporary_file" "$backup_file"
+rm -f "$pgpass_file"
 trap - EXIT
 find "$backup_dir" -type f -name 'a-punto-*.dump' -mtime +30 -delete
 log_line="OK: backup SQL creado en $backup_file $(TZ=Europe/Madrid date +%Y%m%d-%H%M%S)"
