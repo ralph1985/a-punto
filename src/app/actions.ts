@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { safeHttpUrlSchema } from "@/lib/safe-url";
-import { DocumentKind, MaintenanceCategory } from "@/generated/prisma/client";
+import { DocumentKind, ItvResult, MaintenanceCategory, Prisma } from "@/generated/prisma/client";
 
 export type FormState = { error?: string; success?: string };
 
@@ -44,8 +44,43 @@ const optionalHttpUrl = z.union([safeHttpUrlSchema, z.literal("")]);
 const maintenanceSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), serviceDate: z.coerce.date(), odometerKm: optionalInteger, cost: optionalAmount, providerName: z.string().trim().max(120), notes: z.string().trim().max(500), invoiceUrl: optionalHttpUrl });
 const taskSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), intervalMonths: optionalInteger, intervalKm: optionalInteger, notes: z.string().trim().max(500) }).refine((data) => data.intervalMonths || data.intervalKm, "Indica un plazo en meses o kilómetros.");
 const documentSchema = z.object({ vehicleId: z.string().min(1), kind: z.nativeEnum(DocumentKind), title: z.string().trim().min(2), url: optionalHttpUrl, expiresAt: z.union([z.coerce.date(), z.literal("")]) });
+const itvSchema = z.object({
+  vehicleId: z.string().min(1),
+  inspectionDate: z.coerce.date(),
+  nextInspectionDate: z.coerce.date(),
+  result: z.nativeEnum(ItvResult),
+  inspectionType: z.string().trim().max(80),
+  odometerKm: optionalInteger,
+  stationCode: z.string().trim().max(20),
+  stationName: z.string().trim().max(160),
+  stationAddress: z.string().trim().max(240),
+  reportNumber: z.string().trim().max(80),
+  invoiceNumber: z.string().trim().max(80),
+  fee: optionalAmount,
+  defects: z.string().trim().max(1000),
+  observations: z.string().trim().max(1000),
+}).refine((data) => data.nextInspectionDate >= data.inspectionDate, { path: ["nextInspectionDate"], message: "La próxima ITV no puede ser anterior a la inspección." });
 
 function refresh(vehicleSlug: string) { revalidatePath("/"); revalidatePath(`/${vehicleSlug}`); }
+
+async function syncItvSummary(transaction: Prisma.TransactionClient, vehicleId: string) {
+  const latest = await transaction.itvInspection.findFirst({ where: { vehicleId }, orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }], select: { nextInspectionDate: true } });
+  await transaction.vehicle.update({ where: { id: vehicleId }, data: { itvExpiresAt: latest?.nextInspectionDate ?? null } });
+}
+
+async function syncItvOdometer(transaction: Prisma.TransactionClient, vehicleId: string, inspectionId: string, inspectionDate: Date, odometerKm: number | null) {
+  const note = `Registrado con ITV ${inspectionId}`;
+  const reading = await transaction.odometerReading.findFirst({ where: { vehicleId, note } });
+  if (odometerKm === null) {
+    if (reading) await transaction.odometerReading.delete({ where: { id: reading.id } });
+    return;
+  }
+  if (reading) {
+    await transaction.odometerReading.update({ where: { id: reading.id }, data: { valueKm: odometerKm, recordedAt: inspectionDate } });
+  } else {
+    await transaction.odometerReading.create({ data: { vehicleId, valueKm: odometerKm, recordedAt: inspectionDate, note } });
+  }
+}
 
 export async function createMaintenanceEvent(_previousState: FormState, formData: FormData): Promise<FormState> {
   await requireSession();
@@ -91,9 +126,42 @@ export async function createDocumentLink(_previousState: FormState, formData: Fo
   }
 }
 
+export async function createItvInspection(_previousState: FormState, formData: FormData): Promise<FormState> {
+  await requireSession();
+  try {
+    const data = itvSchema.parse(Object.fromEntries(formData));
+    const vehicle = await requireVehicle(data.vehicleId);
+    await db.$transaction(async (transaction) => {
+      const inspection = await transaction.itvInspection.create({ data: {
+        vehicleId: data.vehicleId,
+        inspectionDate: data.inspectionDate,
+        nextInspectionDate: data.nextInspectionDate,
+        result: data.result,
+        inspectionType: data.inspectionType || null,
+        odometerKm: data.odometerKm,
+        stationCode: data.stationCode || null,
+        stationName: data.stationName || null,
+        stationAddress: data.stationAddress || null,
+        reportNumber: data.reportNumber || null,
+        invoiceNumber: data.invoiceNumber || null,
+        fee: data.fee,
+        defects: data.defects || null,
+        observations: data.observations || null,
+      } });
+      await syncItvOdometer(transaction, data.vehicleId, inspection.id, data.inspectionDate, data.odometerKm);
+      await syncItvSummary(transaction, data.vehicleId);
+    });
+    refresh(vehicle.slug);
+    return { success: "ITV guardada." };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
 const maintenanceUpdateSchema = maintenanceSchema.extend({ id: z.string().min(1) });
 const taskUpdateSchema = taskSchema.extend({ id: z.string().min(1) });
 const documentUpdateSchema = documentSchema.extend({ id: z.string().min(1) });
+const itvUpdateSchema = itvSchema.extend({ id: z.string().min(1) });
 const taskDeactivateSchema = z.object({ id: z.string().min(1), vehicleId: z.string().min(1) });
 
 export async function updateMaintenanceEvent(_previousState: FormState, formData: FormData): Promise<FormState> {
@@ -151,6 +219,40 @@ export async function updateDocumentLink(_previousState: FormState, formData: Fo
     await db.documentLink.update({ where: { id: data.id }, data: { kind: data.kind, title: data.title, url: data.url || null, expiresAt: data.expiresAt || null } });
     refresh(vehicle.slug);
     return { success: "Enlace actualizado." };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateItvInspection(_previousState: FormState, formData: FormData): Promise<FormState> {
+  await requireSession();
+  try {
+    const data = itvUpdateSchema.parse(Object.fromEntries(formData));
+    const vehicle = await requireVehicle(data.vehicleId);
+    const existing = await db.itvInspection.findFirst({ where: { id: data.id, vehicleId: data.vehicleId } });
+    if (!existing) throw new ActionError("La ITV indicada no existe.");
+
+    await db.$transaction(async (transaction) => {
+      await transaction.itvInspection.update({ where: { id: data.id }, data: {
+        inspectionDate: data.inspectionDate,
+        nextInspectionDate: data.nextInspectionDate,
+        result: data.result,
+        inspectionType: data.inspectionType || null,
+        odometerKm: data.odometerKm,
+        stationCode: data.stationCode || null,
+        stationName: data.stationName || null,
+        stationAddress: data.stationAddress || null,
+        reportNumber: data.reportNumber || null,
+        invoiceNumber: data.invoiceNumber || null,
+        fee: data.fee,
+        defects: data.defects || null,
+        observations: data.observations || null,
+      } });
+      await syncItvOdometer(transaction, data.vehicleId, data.id, data.inspectionDate, data.odometerKm);
+      await syncItvSummary(transaction, data.vehicleId);
+    });
+    refresh(vehicle.slug);
+    return { success: "ITV actualizada." };
   } catch (error) {
     return { error: actionError(error) };
   }

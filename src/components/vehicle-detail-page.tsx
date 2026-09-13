@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarCheck, CurrencyEur, FileText, PencilSimple, Plus, WarningCircle, Wrench } from "@phosphor-icons/react/dist/ssr";
 import { TaskDeactivateForm } from "@/components/task-deactivate-form";
 import { isSafeHttpUrl } from "@/lib/safe-url";
+import { itvResultClasses, itvResultLabels } from "@/lib/itv";
 import type { VehicleDetail } from "@/lib/vehicle-routes";
 
 const categoryLabels = {
@@ -21,6 +22,7 @@ function taskSchedule(task: VehicleDetail["maintenanceTasks"][number]) {
 export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
   const costedEvents = vehicle.maintenanceEvents.filter((event) => event.cost !== null);
   const totalCost = costedEvents.reduce((sum, event) => sum + Number(event.cost), 0);
+  const latestItv = vehicle.itvInspections[0];
 
   return (
     <main className="app-main">
@@ -32,7 +34,7 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
         </div>
       </header>
 
-      {vehicle.purchasedAt || vehicle.itvExpiresAt ? (
+      {vehicle.purchasedAt || vehicle.itvExpiresAt || latestItv ? (
         <section className="vehicle-data-grid" aria-label={`Datos de ${vehicle.name}`}>
           {vehicle.purchasedAt ? (
             <article>
@@ -47,9 +49,9 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
             <article className="vehicle-data-itv">
               <WarningCircle size={23} aria-hidden="true" />
               <div>
-                <span>ITV</span>
+                <span>Próxima ITV</span>
                 <strong>{vehicle.itvExpiresAt.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}</strong>
-                <small>Próximo vencimiento registrado.</small>
+                <small>{latestItv ? `Último resultado: ${itvResultLabels[latestItv.result]}.` : "Próximo vencimiento registrado."}</small>
               </div>
             </article>
           ) : null}
@@ -109,6 +111,30 @@ export function VehicleDetailPage({ vehicle }: { vehicle: VehicleDetail }) {
             </div>
           ))}
         </aside>
+      </section>
+
+      <section className="detail-panel itv-panel">
+        <div className="panel-heading panel-heading-with-action">
+          <div className="panel-heading-title"><WarningCircle size={22} aria-hidden="true" /><h2>Inspecciones ITV</h2></div>
+          <Link className="panel-action" href={`/${vehicle.slug}/itv/nueva`}><Plus size={17} aria-hidden="true" /> Añadir ITV</Link>
+        </div>
+        {vehicle.itvInspections.length > 0 ? <div className="itv-inspections-list">{vehicle.itvInspections.map((inspection) => (
+          <div className="itv-inspection-row" key={inspection.id}>
+            <div>
+              <div className="itv-inspection-heading">
+                <strong>{itvResultLabels[inspection.result]}</strong>
+                <span className={`itv-result ${itvResultClasses[inspection.result]}`}>{itvResultLabels[inspection.result]}</span>
+              </div>
+              <span>Inspección: {inspection.inspectionDate.toLocaleDateString("es-ES")} · Próxima: {inspection.nextInspectionDate.toLocaleDateString("es-ES")}</span>
+              {inspection.odometerKm !== null ? <span>{inspection.odometerKm.toLocaleString("es-ES")} km{inspection.stationName ? ` · ${inspection.stationName}` : ""}</span> : null}
+              {inspection.reportNumber || inspection.invoiceNumber ? <small>{inspection.reportNumber ? `Informe ${inspection.reportNumber}` : ""}{inspection.reportNumber && inspection.invoiceNumber ? " · " : ""}{inspection.invoiceNumber ? `Factura ${inspection.invoiceNumber}` : ""}</small> : null}
+              {inspection.fee !== null ? <small>{Number(inspection.fee).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</small> : null}
+              {inspection.defects ? <small>Defectos: {inspection.defects}</small> : null}
+              {inspection.observations ? <small>{inspection.observations}</small> : null}
+            </div>
+            <Link className="row-edit" href={`/${vehicle.slug}/itv/${inspection.id}/editar`} aria-label={`Editar ITV del ${inspection.inspectionDate.toLocaleDateString("es-ES")}`}><PencilSimple size={17} aria-hidden="true" /> <span>Editar</span></Link>
+          </div>
+        ))}</div> : <p className="empty-state">Todavía no hay inspecciones ITV registradas.</p>}
       </section>
 
       <section className="detail-panel maintenance-rules-panel">

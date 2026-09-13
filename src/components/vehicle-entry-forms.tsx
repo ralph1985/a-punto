@@ -1,6 +1,7 @@
-import { DocumentKind, MaintenanceCategory } from "@/generated/prisma/client";
-import { createDocumentLink, createMaintenanceEvent, createMaintenanceTask, updateDocumentLink, updateMaintenanceEvent, updateMaintenanceTask } from "@/app/actions";
+import { DocumentKind, ItvResult, MaintenanceCategory } from "@/generated/prisma/client";
+import { createDocumentLink, createItvInspection, createMaintenanceEvent, createMaintenanceTask, updateDocumentLink, updateItvInspection, updateMaintenanceEvent, updateMaintenanceTask } from "@/app/actions";
 import { EntryForm } from "@/components/entry-form";
+import { itvResultLabels } from "@/lib/itv";
 
 const categoryLabels: Record<MaintenanceCategory, string> = {
   MAINTENANCE: "Mantenimiento",
@@ -27,6 +28,41 @@ function dateValue(date: Date | null | undefined) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+type ItvValues = {
+  id?: string;
+  inspectionDate?: Date;
+  nextInspectionDate?: Date;
+  result?: ItvResult;
+  inspectionType?: string | null;
+  odometerKm?: number | null;
+  stationCode?: string | null;
+  stationName?: string | null;
+  stationAddress?: string | null;
+  reportNumber?: string | null;
+  invoiceNumber?: string | null;
+  fee?: number | null;
+  defects?: string | null;
+  observations?: string | null;
+};
+
+export function ItvInspectionForm({ vehicleId, backHref, initial = {}, editing = false }: { vehicleId: string; backHref: string; initial?: ItvValues; editing?: boolean }) {
+  return <EntryForm action={editing ? updateItvInspection : createItvInspection} vehicleId={vehicleId} recordId={initial.id} title={editing ? "Editar ITV" : "Registrar ITV"} description="Guarda el resultado y los datos del informe de inspección." submitLabel={editing ? "Guardar cambios" : "Guardar ITV"} backHref={backHref}>
+    <label htmlFor="itv-date">Fecha de inspección<input id="itv-date" name="inspectionDate" type="date" defaultValue={dateValue(initial.inspectionDate)} required /></label>
+    <label htmlFor="itv-next-date">Próxima inspección<input id="itv-next-date" name="nextInspectionDate" type="date" defaultValue={dateValue(initial.nextInspectionDate)} required /></label>
+    <label htmlFor="itv-result">Resultado<select id="itv-result" name="result" defaultValue={initial.result ?? ItvResult.FAVORABLE}>{Object.values(ItvResult).map((value) => <option key={value} value={value}>{itvResultLabels[value]}</option>)}</select></label>
+    <label htmlFor="itv-type">Tipo de inspección<input id="itv-type" name="inspectionType" defaultValue={initial.inspectionType ?? ""} placeholder="001 PERIÓDICA" /></label>
+    <label htmlFor="itv-odometer">Kilómetros<input id="itv-odometer" name="odometerKm" type="number" min="0" inputMode="numeric" defaultValue={initial.odometerKm ?? ""} /></label>
+    <label htmlFor="itv-station-code">Código de estación<input id="itv-station-code" name="stationCode" defaultValue={initial.stationCode ?? ""} /></label>
+    <label htmlFor="itv-station-name">Estación<input id="itv-station-name" name="stationName" defaultValue={initial.stationName ?? ""} /></label>
+    <label htmlFor="itv-station-address">Dirección de la estación<input id="itv-station-address" name="stationAddress" defaultValue={initial.stationAddress ?? ""} /></label>
+    <label htmlFor="itv-report-number">Número de informe<input id="itv-report-number" name="reportNumber" defaultValue={initial.reportNumber ?? ""} /></label>
+    <label htmlFor="itv-invoice-number">Número de factura<input id="itv-invoice-number" name="invoiceNumber" defaultValue={initial.invoiceNumber ?? ""} /></label>
+    <label htmlFor="itv-fee">Tarifa<input id="itv-fee" name="fee" type="number" step="0.01" min="0" inputMode="decimal" defaultValue={initial.fee ?? ""} /></label>
+    <label htmlFor="itv-defects">Defectos<textarea id="itv-defects" name="defects" rows={3} defaultValue={initial.defects ?? ""} /></label>
+    <label htmlFor="itv-observations">Observaciones<textarea id="itv-observations" name="observations" rows={3} defaultValue={initial.observations ?? ""} /></label>
+  </EntryForm>;
 }
 
 type EventValues = {
