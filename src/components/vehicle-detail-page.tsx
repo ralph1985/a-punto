@@ -4,6 +4,7 @@ import { TaskDeactivateForm } from "@/components/task-deactivate-form";
 import { isSafeHttpUrl } from "@/lib/safe-url";
 import { itvResultClasses, itvResultLabels } from "@/lib/itv";
 import { evaluateTask, type TaskStatus } from "@/lib/maintenance";
+import { filterHistory, groupHistory, historyCategoryValues, historyReturnQuery, historySummary, historyYears, vehicleHistoryHref, type HistoryEvent, type HistoryFilters } from "@/lib/vehicle-history";
 import { vehicleTabHref, vehicleTabs, type VehicleTab } from "@/lib/vehicle-tabs";
 import type { VehicleDetail } from "@/lib/vehicle-routes";
 
@@ -44,19 +45,8 @@ function taskSchedule(task: VehicleDetail["maintenanceTasks"][number]) {
   return schedule.length > 0 ? schedule.join(" o ") : "Sin plazo configurado";
 }
 
-function groupHistory(events: VehicleDetail["maintenanceEvents"]) {
-  const groups = new Map<number, VehicleDetail["maintenanceEvents"]>();
-  for (const event of events) {
-    const year = event.serviceDate.getUTCFullYear();
-    const current = groups.get(year) ?? [];
-    current.push(event);
-    groups.set(year, current);
-  }
-  return [...groups.entries()].map(([year, yearEvents]) => ({ year, events: yearEvents }));
-}
-
-function HistoryRow({ event, vehicleSlug, returnTab = "historial" }: { event: VehicleDetail["maintenanceEvents"][number]; vehicleSlug: string; returnTab?: VehicleTab }) {
-  const eventMeta = [formatDate(event.serviceDate), event.odometerKm !== null ? formatKm(event.odometerKm) : null].filter(Boolean).join(" · ");
+function HistoryRow({ event, vehicleSlug, returnTab = "historial" }: { event: HistoryEvent; vehicleSlug: string; returnTab?: VehicleTab }) {
+  const eventMeta = [categoryLabels[event.category], formatDate(event.serviceDate), event.odometerKm !== null ? formatKm(event.odometerKm) : null].filter(Boolean).join(" · ");
 
   return <div className="history-row">
     <div className="history-row-content">
@@ -69,6 +59,31 @@ function HistoryRow({ event, vehicleSlug, returnTab = "historial" }: { event: Ve
       <Link className="row-edit" href={`/${vehicleSlug}/intervenciones/${event.id}/editar?from=${returnTab}`} aria-label={`Editar ${event.title}`}><PencilSimple size={17} aria-hidden="true" /> <span>Editar</span></Link>
     </div>
   </div>;
+}
+
+function HistoryEventRow({ event, vehicleSlug, filters }: { event: HistoryEvent; vehicleSlug: string; filters: HistoryFilters }) {
+  const editHref = `/${vehicleSlug}/intervenciones/${event.id}/editar?${historyReturnQuery(filters)}`;
+  const eventMeta = [event.odometerKm !== null ? formatKm(event.odometerKm) : null, event.provider?.name ?? "Taller no registrado"].filter(Boolean).join(" · ");
+  const invoiceUrl = event.invoiceUrl && isSafeHttpUrl(event.invoiceUrl) ? event.invoiceUrl : null;
+
+  return <details className="history-event">
+    <summary className="history-event-summary">
+      <time className="history-event-date" dateTime={event.serviceDate.toISOString()}>{formatDate(event.serviceDate)}</time>
+      <span className="history-event-copy">
+        <span className="history-event-title"><span className="history-category">{categoryLabels[event.category]}</span><strong>{event.title}</strong></span>
+        <span className="history-event-meta">{eventMeta}</span>
+      </span>
+      <span className="history-event-side">
+        {event.cost !== null ? <b className="history-event-cost">{Number(event.cost).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</b> : null}
+        <span className="history-event-chevron" aria-hidden="true">+</span>
+      </span>
+    </summary>
+    <div className="history-event-details">
+      {event.notes ? <p><strong>Notas</strong>{event.notes}</p> : null}
+      {invoiceUrl ? <a href={invoiceUrl} target="_blank" rel="noreferrer">Abrir factura</a> : null}
+      <Link className="history-event-edit" href={editHref} aria-label={`Editar ${event.title}`}><PencilSimple size={17} aria-hidden="true" /> Editar intervención</Link>
+    </div>
+  </details>;
 }
 
 function PanelHeading({ icon, title, action }: { icon: React.ReactNode; title: string; action?: React.ReactNode }) {
@@ -144,15 +159,28 @@ function SummaryTab({ vehicle, tasks, latestMaintenance }: { vehicle: VehicleDet
   </>;
 }
 
-function HistoryTab({ vehicle }: { vehicle: VehicleDetail }) {
-  const groups = groupHistory(vehicle.maintenanceEvents);
+function HistoryTab({ vehicle, filters }: { vehicle: VehicleDetail; filters: HistoryFilters }) {
+  const filteredEvents = filterHistory(vehicle.maintenanceEvents, filters);
+  const groups = groupHistory(filteredEvents);
+  const years = historyYears(vehicle.maintenanceEvents);
+  const summary = historySummary(filteredEvents);
+  const hasFilters = filters.year !== undefined || filters.category !== undefined || filters.query !== undefined;
+  const dateRange = summary.firstDate && summary.lastDate && summary.firstDate.getTime() !== summary.lastDate.getTime() ? `${formatDate(summary.firstDate)} – ${formatDate(summary.lastDate)}` : summary.lastDate ? formatDate(summary.lastDate) : "Sin fechas";
 
   return <section className="detail-panel history-panel">
-    <PanelHeading icon={<Wrench size={22} aria-hidden="true" />} title="Historial de intervenciones" action={<Link className="panel-action" href={`/${vehicle.slug}/intervenciones/nueva?from=historial`}><Plus size={17} aria-hidden="true" /> Registrar</Link>} />
+    <PanelHeading icon={<Wrench size={22} aria-hidden="true" />} title="Historial de intervenciones" action={<Link className="panel-action" href={`/${vehicle.slug}/intervenciones/nueva?${historyReturnQuery(filters)}`}><Plus size={17} aria-hidden="true" /> Registrar</Link>} />
+    <form className="history-filter-form" method="get">
+      <input type="hidden" name="tab" value="historial" />
+      <label className="history-filter-search" htmlFor="history-search">Buscar<input id="history-search" name="q" type="search" defaultValue={filters.query ?? ""} placeholder="Aceite, taller…" /></label>
+      <label htmlFor="history-year">Año<select id="history-year" name="year" defaultValue={filters.year?.toString() ?? ""}><option value="">Todos</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select></label>
+      <label htmlFor="history-category">Categoría<select id="history-category" name="category" defaultValue={filters.category ?? ""}><option value="">Todas</option>{historyCategoryValues.map((category) => <option key={category} value={category}>{categoryLabels[category]}</option>)}</select></label>
+      <div className="history-filter-actions"><button type="submit">Filtrar</button>{hasFilters ? <Link href={vehicleHistoryHref(vehicle.slug)}>Limpiar</Link> : null}</div>
+    </form>
+    <div className="history-result-summary" aria-live="polite"><strong>{summary.count} {summary.count === 1 ? "intervención" : "intervenciones"}</strong><span>{summary.costCount > 0 ? `${summary.totalCost.toLocaleString("es-ES", { style: "currency", currency: "EUR" })} registrado` : "Sin costes registrados"}</span><span>{dateRange}</span></div>
     {groups.length > 0 ? <div className="history-year-groups">{groups.map((group, index) => <details className="history-year-group" key={group.year} open={index === 0}>
       <summary><strong>{group.year}</strong><span>{group.events.length} {group.events.length === 1 ? "intervención" : "intervenciones"}</span></summary>
-      <div className="history-year-list">{group.events.map((event) => <HistoryRow key={event.id} event={event} vehicleSlug={vehicle.slug} />)}</div>
-    </details>)}</div> : <p className="empty-state">Todavía no hay intervenciones registradas.</p>}
+      <div className="history-year-list">{group.events.map((event) => <HistoryEventRow key={event.id} event={event} vehicleSlug={vehicle.slug} filters={filters} />)}</div>
+    </details>)}</div> : vehicle.maintenanceEvents.length > 0 && hasFilters ? <div className="empty-state history-no-results"><strong>No hay coincidencias.</strong><span>Prueba con otros filtros para encontrar una intervención.</span><Link href={vehicleHistoryHref(vehicle.slug)}>Limpiar filtros</Link></div> : <p className="empty-state">Todavía no hay intervenciones registradas. Registra la primera para empezar el historial.</p>}
   </section>;
 }
 
@@ -193,7 +221,7 @@ function DocumentsTab({ vehicle }: { vehicle: VehicleDetail }) {
   </section>;
 }
 
-export function VehicleDetailPage({ vehicle, activeTab }: { vehicle: VehicleDetail; activeTab: VehicleTab }) {
+export function VehicleDetailPage({ vehicle, activeTab, historyFilters = {} }: { vehicle: VehicleDetail; activeTab: VehicleTab; historyFilters?: HistoryFilters }) {
   const currentKm = vehicle.odometerReadings[0]?.valueKm ?? null;
   const taskStatusOrder: Record<TaskStatus, number> = { overdue: 0, soon: 1, "needs-odometer": 2, upcoming: 3, unscheduled: 4 };
   const tasks = vehicle.maintenanceTasks.map((task) => ({ ...task, evaluation: evaluateTask(task, currentKm) })).sort((a, b) => taskStatusOrder[a.evaluation.status] - taskStatusOrder[b.evaluation.status]);
@@ -205,7 +233,7 @@ export function VehicleDetailPage({ vehicle, activeTab }: { vehicle: VehicleDeta
     </header>
     <VehicleTabs vehicleSlug={vehicle.slug} activeTab={activeTab} />
     {activeTab === "resumen" ? <SummaryTab vehicle={vehicle} tasks={tasks} latestMaintenance={latestMaintenance} /> : null}
-    {activeTab === "historial" ? <HistoryTab vehicle={vehicle} /> : null}
+    {activeTab === "historial" ? <HistoryTab vehicle={vehicle} filters={historyFilters} /> : null}
     {activeTab === "itv" ? <ItvTab vehicle={vehicle} /> : null}
     {activeTab === "documentos" ? <DocumentsTab vehicle={vehicle} /> : null}
   </main>;
