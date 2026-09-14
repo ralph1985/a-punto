@@ -3,14 +3,17 @@ import type { ReactNode } from "react";
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import { AppNavigation } from "@/components/app-navigation";
 import type { VehicleDetail } from "@/lib/vehicle-routes";
+import { vehicleTabHref, type VehicleTab } from "@/lib/vehicle-tabs";
 
 type VehicleEntryContext = Pick<VehicleDetail, "slug" | "name">;
 
-export function VehicleEntryPage({ vehicle, title, description, children }: { vehicle: VehicleEntryContext; title: string; description: string; children: ReactNode }) {
+export function VehicleEntryPage({ vehicle, title, description, returnTab = "resumen", children }: { vehicle: VehicleEntryContext; title: string; description: string; returnTab?: VehicleTab; children: ReactNode }) {
+  const backHref = vehicleTabHref(vehicle.slug, returnTab);
+
   return <div className="app-shell">
     <AppNavigation current={vehicle.slug} />
     <main className="app-main entry-page">
-      <Link className="back-link" href={`/${vehicle.slug}`}><ArrowLeft size={18} aria-hidden="true" /> Volver a {vehicle.name}</Link>
+      <Link className="back-link" href={backHref}><ArrowLeft size={18} aria-hidden="true" /> Volver a {vehicle.name}</Link>
       <header className="entry-page-header">
         <p className="eyebrow">{vehicle.name}</p>
         <h1>{title}</h1>

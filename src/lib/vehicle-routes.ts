@@ -8,6 +8,7 @@ export function getVehicleSlug(vehicle: { slug: string }): VehicleRouteSlug {
 }
 
 export const vehicleDetailInclude = {
+  odometerReadings: { orderBy: { recordedAt: "desc" }, take: 1 },
   maintenanceEvents: { include: { provider: true }, orderBy: { serviceDate: "desc" } },
   itvInspections: { orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }] },
   maintenanceTasks: { where: { isActive: true } },
