@@ -1,5 +1,5 @@
 import { DocumentKind, ItvResult, MaintenanceCategory } from "@/generated/prisma/client";
-import { createDocumentLink, createItvInspection, createMaintenanceEvent, createMaintenanceTask, updateDocumentLink, updateItvInspection, updateMaintenanceEvent, updateMaintenanceTask } from "@/app/actions";
+import { createAdBlueRefill, createDocumentLink, createItvInspection, createMaintenanceEvent, createMaintenanceTask, updateAdBlueRefill, updateDocumentLink, updateItvInspection, updateMaintenanceEvent, updateMaintenanceTask } from "@/app/actions";
 import { EntryForm } from "@/components/entry-form";
 import { itvResultLabels } from "@/lib/itv";
 
@@ -107,6 +107,27 @@ export function MaintenanceTaskForm({ vehicleId, backHref, initial = {}, editing
     <label htmlFor="task-kilometres">Cada kilómetros<input id="task-kilometres" name="intervalKm" type="number" min="1" inputMode="numeric" defaultValue={initial.intervalKm ?? ""} /></label>
     <p className="field-help">Indica al menos un plazo, por meses o por kilómetros.</p>
     <label htmlFor="task-notes">Notas<textarea id="task-notes" name="notes" rows={4} defaultValue={initial.notes ?? ""} /></label>
+  </EntryForm>;
+}
+
+type AdBlueValues = {
+  id?: string;
+  refillDate?: Date;
+  odometerKm?: number;
+  litres?: number;
+  unitPrice?: number;
+  remainingRangeKm?: number | null;
+  notes?: string | null;
+};
+
+export function AdBlueRefillForm({ vehicleId, backHref, initial = {}, editing = false }: { vehicleId: string; backHref: string; initial?: AdBlueValues; editing?: boolean }) {
+  return <EntryForm action={editing ? updateAdBlueRefill : createAdBlueRefill} vehicleId={vehicleId} recordId={initial.id} title={editing ? "Editar repostaje de AdBlue" : "Registrar repostaje de AdBlue"} description="Guarda la cantidad, el precio y la autonomía que indicaba el vehículo." submitLabel={editing ? "Guardar cambios" : "Guardar repostaje"} backHref={backHref}>
+    <label htmlFor="adblue-date">Fecha<input id="adblue-date" name="refillDate" type="date" defaultValue={dateValue(initial.refillDate)} required /></label>
+    <label htmlFor="adblue-odometer">Kilómetros<input id="adblue-odometer" name="odometerKm" type="number" min="1" inputMode="numeric" defaultValue={initial.odometerKm ?? ""} required /></label>
+    <label htmlFor="adblue-litres">Litros<input id="adblue-litres" name="litres" type="number" min="0.01" step="0.01" inputMode="decimal" defaultValue={initial.litres ?? ""} required /></label>
+    <label htmlFor="adblue-unit-price">Precio por litro<input id="adblue-unit-price" name="unitPrice" type="number" min="0.001" step="0.001" inputMode="decimal" defaultValue={initial.unitPrice ?? ""} required /></label>
+    <label htmlFor="adblue-range">Autonomía restante indicada<input id="adblue-range" name="remainingRangeKm" type="number" min="1" inputMode="numeric" defaultValue={initial.remainingRangeKm ?? ""} placeholder="Opcional" /></label>
+    <label htmlFor="adblue-notes">Notas<textarea id="adblue-notes" name="notes" rows={4} defaultValue={initial.notes ?? ""} /></label>
   </EntryForm>;
 }
 

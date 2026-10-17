@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { CalendarCheck, CurrencyEur, FileText, Gauge, PencilSimple, Plus, WarningCircle, Wrench } from "@phosphor-icons/react/dist/ssr";
+import { CalendarCheck, CurrencyEur, Drop, FileText, Gauge, PencilSimple, Plus, WarningCircle, Wrench } from "@phosphor-icons/react/dist/ssr";
 import { TaskDeactivateForm } from "@/components/task-deactivate-form";
 import { isSafeHttpUrl } from "@/lib/safe-url";
 import { itvResultClasses, itvResultLabels } from "@/lib/itv";
 import { evaluateTask, type TaskStatus } from "@/lib/maintenance";
+import { formatAdBlueRefillMeta } from "@/lib/adblue";
 import { filterHistory, groupHistory, historyCategoryValues, historyReturnQuery, historySummary, historyYears, vehicleHistoryHref, type HistoryEvent, type HistoryFilters } from "@/lib/vehicle-history";
 import { vehicleTabHref, vehicleTabs, type VehicleTab } from "@/lib/vehicle-tabs";
 import type { VehicleDetail } from "@/lib/vehicle-routes";
@@ -93,6 +94,27 @@ function PanelHeading({ icon, title, action }: { icon: React.ReactNode; title: s
   </div>;
 }
 
+function AdBluePanel({ vehicle }: { vehicle: VehicleDetail }) {
+  const refills = vehicle.adBlueRefills;
+
+  return <section className="detail-panel adblue-panel" aria-label="Registro de AdBlue">
+    <PanelHeading icon={<Drop size={22} aria-hidden="true" />} title="AdBlue" action={<Link className="panel-action" href={`/${vehicle.slug}/adblue/nueva?from=resumen`}><Plus size={17} aria-hidden="true" /> Registrar</Link>} />
+    {refills.length > 0 ? <div className="adblue-refills-list">
+      {refills.slice(0, 3).map((refill) => <div className="adblue-refill-row" key={refill.id}>
+        <div>
+          <strong>{formatDate(refill.refillDate)}</strong>
+          <span>{formatAdBlueRefillMeta({ litres: Number(refill.litres), unitPrice: Number(refill.unitPrice), odometerKm: refill.odometerKm, remainingRangeKm: refill.remainingRangeKm })}</span>
+          {refill.notes ? <small>{refill.notes}</small> : null}
+        </div>
+        <div className="adblue-refill-actions">
+          <b>{Number(refill.cost).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}</b>
+          <Link className="row-edit" href={`/${vehicle.slug}/adblue/${refill.id}/editar?from=resumen`} aria-label={`Editar repostaje de AdBlue del ${formatDate(refill.refillDate)}`}><PencilSimple size={17} aria-hidden="true" /><span>Editar</span></Link>
+        </div>
+      </div>)}
+    </div> : <p className="empty-state">Todavía no hay repostajes registrados.</p>}
+  </section>;
+}
+
 function VehicleTabs({ vehicleSlug, activeTab }: { vehicleSlug: string; activeTab: VehicleTab }) {
   return <nav className="vehicle-tabs" aria-label="Secciones del vehículo">
     {vehicleTabs.map((tab) => <Link key={tab.id} className={activeTab === tab.id ? "vehicle-tab active" : "vehicle-tab"} href={vehicleTabHref(vehicleSlug, tab.id)} aria-current={activeTab === tab.id ? "page" : undefined}>{tab.label}</Link>)}
@@ -156,6 +178,7 @@ function SummaryTab({ vehicle, tasks, latestMaintenance }: { vehicle: VehicleDet
         {vehicle.maintenanceEvents.length > recentEvents.length ? <Link className="summary-more-link" href={vehicleTabHref(vehicle.slug, "historial")}>Ver las {vehicle.maintenanceEvents.length} intervenciones</Link> : null}
       </aside>
     </div>
+    {vehicle.slug === "rifter" || vehicle.adBlueRefills.length > 0 ? <AdBluePanel vehicle={vehicle} /> : null}
   </>;
 }
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/require-session";
 import { safeHttpUrlSchema } from "@/lib/safe-url";
+import { calculateAdBlueCost } from "@/lib/adblue";
 import { DocumentKind, ItvResult, MaintenanceCategory, Prisma } from "@/generated/prisma/client";
 
 export type FormState = { error?: string; success?: string };
@@ -42,6 +43,7 @@ const optionalInteger = z.preprocess((value) => value === "" || value === null ?
 const optionalAmount = z.preprocess((value) => value === "" || value === null ? null : Number(value), z.number().nonnegative().nullable());
 const optionalHttpUrl = z.union([safeHttpUrlSchema, z.literal("")]);
 const maintenanceSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), serviceDate: z.coerce.date(), odometerKm: optionalInteger, cost: optionalAmount, providerName: z.string().trim().max(120), notes: z.string().trim().max(500), invoiceUrl: optionalHttpUrl });
+const adBlueSchema = z.object({ vehicleId: z.string().min(1), refillDate: z.coerce.date(), odometerKm: z.coerce.number().int().positive(), litres: z.coerce.number().positive(), unitPrice: z.coerce.number().positive(), remainingRangeKm: optionalInteger, notes: z.string().trim().max(500) });
 const taskSchema = z.object({ vehicleId: z.string().min(1), title: z.string().trim().min(2), category: z.nativeEnum(MaintenanceCategory), intervalMonths: optionalInteger, intervalKm: optionalInteger, notes: z.string().trim().max(500) }).refine((data) => data.intervalMonths || data.intervalKm, "Indica un plazo en meses o kilómetros.");
 const documentSchema = z.object({ vehicleId: z.string().min(1), kind: z.nativeEnum(DocumentKind), title: z.string().trim().min(2), url: optionalHttpUrl, expiresAt: z.union([z.coerce.date(), z.literal("")]) });
 const itvSchema = z.object({
@@ -113,6 +115,22 @@ export async function createMaintenanceTask(_previousState: FormState, formData:
   }
 }
 
+export async function createAdBlueRefill(_previousState: FormState, formData: FormData): Promise<FormState> {
+  await requireSession();
+  try {
+    const data = adBlueSchema.parse(Object.fromEntries(formData));
+    const vehicle = await requireVehicle(data.vehicleId);
+    await db.$transaction(async (transaction) => {
+      await transaction.adBlueRefill.create({ data: { vehicleId: data.vehicleId, refillDate: data.refillDate, odometerKm: data.odometerKm, litres: data.litres, unitPrice: data.unitPrice, cost: calculateAdBlueCost(data.litres, data.unitPrice), remainingRangeKm: data.remainingRangeKm, notes: data.notes || null } });
+      await transaction.odometerReading.create({ data: { vehicleId: data.vehicleId, valueKm: data.odometerKm, recordedAt: data.refillDate, note: "Registrado con AdBlue" } });
+    });
+    refresh(vehicle.slug);
+    return { success: "Repostaje de AdBlue guardado." };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
 export async function createDocumentLink(_previousState: FormState, formData: FormData): Promise<FormState> {
   await requireSession();
   try {
@@ -159,6 +177,7 @@ export async function createItvInspection(_previousState: FormState, formData: F
 }
 
 const maintenanceUpdateSchema = maintenanceSchema.extend({ id: z.string().min(1) });
+const adBlueUpdateSchema = adBlueSchema.extend({ id: z.string().min(1) });
 const taskUpdateSchema = taskSchema.extend({ id: z.string().min(1) });
 const documentUpdateSchema = documentSchema.extend({ id: z.string().min(1) });
 const itvUpdateSchema = itvSchema.extend({ id: z.string().min(1) });
@@ -204,6 +223,29 @@ export async function updateMaintenanceTask(_previousState: FormState, formData:
     await db.maintenanceTask.update({ where: { id: data.id }, data: { title: data.title, category: data.category, intervalMonths: data.intervalMonths, intervalKm: data.intervalKm, notes: data.notes || null } });
     refresh(vehicle.slug);
     return { success: "Regla actualizada." };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
+}
+
+export async function updateAdBlueRefill(_previousState: FormState, formData: FormData): Promise<FormState> {
+  await requireSession();
+  try {
+    const data = adBlueUpdateSchema.parse(Object.fromEntries(formData));
+    const vehicle = await requireVehicle(data.vehicleId);
+    const existing = await db.adBlueRefill.findFirst({ where: { id: data.id, vehicleId: data.vehicleId } });
+    if (!existing) throw new ActionError("El repostaje de AdBlue indicado no existe.");
+    await db.$transaction(async (transaction) => {
+      await transaction.adBlueRefill.update({ where: { id: data.id }, data: { refillDate: data.refillDate, odometerKm: data.odometerKm, litres: data.litres, unitPrice: data.unitPrice, cost: calculateAdBlueCost(data.litres, data.unitPrice), remainingRangeKm: data.remainingRangeKm, notes: data.notes || null } });
+      const reading = await transaction.odometerReading.findFirst({ where: { vehicleId: data.vehicleId, recordedAt: existing.refillDate, valueKm: existing.odometerKm, note: "Registrado con AdBlue" } });
+      if (reading) {
+        await transaction.odometerReading.update({ where: { id: reading.id }, data: { recordedAt: data.refillDate, valueKm: data.odometerKm } });
+      } else {
+        await transaction.odometerReading.create({ data: { vehicleId: data.vehicleId, valueKm: data.odometerKm, recordedAt: data.refillDate, note: "Registrado con AdBlue" } });
+      }
+    });
+    refresh(vehicle.slug);
+    return { success: "Repostaje de AdBlue actualizado." };
   } catch (error) {
     return { error: actionError(error) };
   }

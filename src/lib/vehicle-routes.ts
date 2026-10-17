@@ -12,6 +12,7 @@ export const vehicleDetailInclude = {
   maintenanceEvents: { include: { provider: true }, orderBy: { serviceDate: "desc" } },
   itvInspections: { orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }] },
   maintenanceTasks: { where: { isActive: true } },
+  adBlueRefills: { orderBy: { refillDate: "desc" } },
   documents: true,
   insurancePolicies: true,
 } satisfies Prisma.VehicleInclude;

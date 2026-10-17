@@ -64,6 +64,7 @@ model Vehicle {
   documents       DocumentLink[]
   insurancePolicies InsurancePolicy[]
   purchases       VehiclePurchase[]
+  adBlueRefills   AdBlueRefill[]
   importRecords   ImportRecord[]
 }
 
@@ -205,6 +206,23 @@ model VehiclePurchase {
   vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@index([vehicleId])
+}
+
+model AdBlueRefill {
+  id                String   @id @default(cuid())
+  vehicleId         String
+  refillDate        DateTime
+  odometerKm       Int
+  litres            Decimal  @db.Decimal(8, 2)
+  unitPrice         Decimal  @db.Decimal(8, 3)
+  cost              Decimal  @db.Decimal(10, 2)
+  remainingRangeKm  Int?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  vehicle           Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, refillDate])
 }
 
 model ImportRecord {

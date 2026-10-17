@@ -99,3 +99,13 @@ h2 { font-size: clamp(1.25rem, 3vw, 1.65rem); letter-spacing: -.035em; line-heig
     white-space: normal;
   }
 }
+
+.adblue-panel { margin-top: 18px; }
+.adblue-refills-list { display: grid; }
+.adblue-refill-row { align-items: start; border-bottom: 1px solid var(--line); display: flex; gap: 18px; justify-content: space-between; padding: 14px 0; }
+.adblue-refill-row:last-child { border-bottom: 0; }
+.adblue-refill-row > div:first-child { display: grid; gap: 3px; min-width: 0; }
+.adblue-refill-row span, .adblue-refill-row small { color: var(--muted); font-size: .82rem; line-height: 1.45; }
+.adblue-refill-actions { align-items: end; display: flex; flex-direction: column; gap: 8px; white-space: nowrap; }
+.adblue-refill-actions b { color: var(--ink); font-size: .92rem; }
+@media (max-width: 700px) { .adblue-refill-row { gap: 10px; }.adblue-refill-actions { align-items: end; }.adblue-refill-actions .row-edit span { display: none; } }
